@@ -7,6 +7,9 @@
     "media_source",
     "notify"
   ],
+  "categories": [
+    "energy"
+  ],
   "codeowners": [
     "@artech-lab"
   ],
