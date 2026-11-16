@@ -1,0 +1,25 @@
+{
+  "domain": "ai_meter_reader",
+  "name": "AI Meter Reader",
+  "after_dependencies": [
+    "ai_task",
+    "light",
+    "media_source",
+    "notify"
+  ],
+  "codeowners": [
+    "@artech-lab"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "camera",
+    "frontend",
+    "http"
+  ],
+  "documentation": "https://github.com/artech-lab/ha-ai-meter-reader",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/artech-lab/ha-ai-meter-reader/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}
