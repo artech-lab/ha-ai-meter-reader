@@ -39,6 +39,7 @@
           "accepted": "mdi:check-circle",
           "unconfirmed": "mdi:timer-sand",
           "decrease": "mdi:arrow-down-bold-circle",
+          "implausible": "mdi:alert-octagon",
           "unreadable": "mdi:eye-off",
           "wrong_digits": "mdi:numeric-positive-1",
           "error": "mdi:alert-circle",

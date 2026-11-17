@@ -134,7 +134,7 @@ language of Home Assistant.
 | Entity | Description |
 | --- | --- |
 | `sensor.water_meter_reading` | The accepted reading: `total_increasing`, device class and unit of the meter. Attributes: `updated_at`, `pending_value` (a larger reading waiting for confirmation), `meter_type`, `digits`, `decimal_places` and the source entities. |
-| `sensor.water_meter_last_result` | `accepted`, `unconfirmed`, `decrease`, `unreadable`, `wrong_digits`, `error`, `corrected`. Attributes: `digits_read`, `consecutive_failures`, `ai_engine`, `last_error`. |
+| `sensor.water_meter_last_result` | `accepted`, `unconfirmed`, `decrease`, `implausible`, `unreadable`, `wrong_digits`, `error`, `corrected`. Attributes: `digits_read`, `consecutive_failures`, `ai_engine`, `last_error`. |
 | `sensor.water_meter_confidence` | Confidence 0–10 of the last answer. |
 | `sensor.water_meter_last_read` | Time of the last reading attempt. |
 | `sensor.water_meter_value_read` | Diagnostic: the last value read by the AI, even if rejected. |
@@ -167,6 +167,7 @@ data:
 | Equal or higher, up to the allowed increase | `accepted` |
 | Lower | `decrease`: rejected (a misread digit, or a wheel between two numbers) |
 | Higher than the allowed increase | `unconfirmed`: kept aside, accepted when the next reading is consistent with it |
+| Higher than a whole day at the maximum increase (or than the time since the last accepted value at that rate, if longer) | `implausible`: rejected however many readings agree (a wheel misread the same way every time); fix the value with `ai_meter_reader.set_reading` if it is real |
 | Digits marked unreadable, confidence below 4, or too many digits | `unreadable` / `wrong_digits`: the frame is retried once, then rejected |
 
 The allowed increase is the *maximum increase per reading* multiplied by the number of intervals since

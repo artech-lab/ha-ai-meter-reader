@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from enum import StrEnum
 from typing import Final
 
@@ -81,6 +82,9 @@ MAX_DECIMALS: Final = 3
 # readings confirm it: one misread digit never reaches the statistics, while a
 # real jump (after a long camera outage, for example) is taken after a short delay.
 CONFIRMATIONS: Final = 2
+# A jump larger than the maximum increase sustained for this long (or since the
+# last accepted value, if longer) is never confirmed: it needs set_reading.
+MAX_JUMP_SPAN: Final = timedelta(days=1)
 # Consecutive failed readings (unreadable, rejected, error) that raise a problem.
 FAILURES_FOR_PROBLEM: Final = 3
 

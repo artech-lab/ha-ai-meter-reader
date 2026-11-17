@@ -30,12 +30,14 @@ MESSAGES: Final[dict[str, dict[str, tuple[str, str]]]] = {
 REASONS: Final[dict[str, dict[str, str]]] = {
     "en": {
         "decrease": "lower than the last reading",
+        "implausible": "far higher than the last reading",
         "unreadable": "digits not readable",
         "wrong_digits": "too many digits",
         "error": "camera or AI not responding",
     },
     "it": {
         "decrease": "inferiore all'ultima lettura",
+        "implausible": "molto superiore all'ultima lettura",
         "unreadable": "cifre non leggibili",
         "wrong_digits": "troppe cifre",
         "error": "telecamera o AI non rispondono",

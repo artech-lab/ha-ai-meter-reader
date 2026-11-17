@@ -136,8 +136,8 @@ async def test_misreads_never_reach_the_reading(hass: HomeAssistant, freezer: Fr
     FakeAI(hass, [answer("01950922"), answer("01250000"), answer("012509X2"), answer("012509X2"), answer("01250960")])
     await _setup(hass, tmp_path, options={**OPTIONS, "light_entity": None})
     await _advance(hass, freezer, 1)
-    assert _state(hass, RESULT) == "unconfirmed"
-    assert hass.states.get(READING).attributes["pending_value"] == 1950922
+    assert _state(hass, RESULT) == "implausible"
+    assert hass.states.get(READING).attributes["pending_value"] is None
     await _advance(hass, freezer, 15)
     assert _state(hass, RESULT) == "decrease"
     await _advance(hass, freezer, 15)

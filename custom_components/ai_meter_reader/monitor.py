@@ -385,7 +385,7 @@ class MeterMonitor:
                     )
                 result = parse_reading((response or {}).get("data"), self.digits, self.decimals)
             except (HomeAssistantError, TimeoutError, ValueError) as err:
-                errors.append(f"{engine}: {err or type(err).__name__}")
+                errors.append(f"{engine}: {str(err) or type(err).__name__}")
                 continue
             self.last_engine = engine
             return result

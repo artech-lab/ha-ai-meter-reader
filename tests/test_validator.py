@@ -34,12 +34,31 @@ def test_a_decrease_is_rejected() -> None:
 
 def test_a_single_misread_digit_never_passes() -> None:
     validator = _validator(1250922)
-    assert validator.check(1950922, _at(15), 300, INTERVAL) is Outcome.UNCONFIRMED
+    assert validator.check(1260922, _at(15), 300, INTERVAL) is Outcome.UNCONFIRMED
     assert validator.value == 1250922
-    assert validator.pending_value == 1950922
+    assert validator.pending_value == 1260922
     # The next reading is the real one: accepted, and the misread is forgotten.
     assert validator.check(1250950, _at(30), 300, INTERVAL) is Outcome.ACCEPTED
     assert validator.pending_value is None
+
+
+def test_a_misread_repeated_every_time_is_never_confirmed() -> None:
+    # The first wheel hidden by a reflection and read as 9 on every frame.
+    validator = _validator(345705)
+    for minutes in (60, 120, 180):
+        assert validator.check(9347418 + minutes, _at(minutes), 300, timedelta(hours=1)) is Outcome.IMPLAUSIBLE
+    assert validator.value == 345705
+    assert validator.pending_value is None
+    # Within a day's worth of maximum increase, a confirmed jump is still accepted.
+    assert validator.check(347418, _at(240), 300, timedelta(hours=1)) is Outcome.UNCONFIRMED
+    assert validator.check(347420, _at(300), 300, timedelta(hours=1)) is Outcome.ACCEPTED
+
+
+def test_the_implausible_limit_grows_after_a_long_outage() -> None:
+    validator = _validator()
+    # Ten days without an accepted value: up to ten days at the maximum increase.
+    assert validator.check(400000, _at(10 * 1440), 300, INTERVAL) is Outcome.IMPLAUSIBLE
+    assert validator.check(200000, _at(10 * 1440 + 15), 300, INTERVAL) is Outcome.ACCEPTED
 
 
 def test_a_real_jump_is_accepted_once_confirmed() -> None:
@@ -92,6 +111,7 @@ def test_round_trip() -> None:
 def test_failed_outcomes() -> None:
     assert {o for o in Outcome if o.failed} == {
         Outcome.DECREASE,
+        Outcome.IMPLAUSIBLE,
         Outcome.UNREADABLE,
         Outcome.WRONG_DIGITS,
         Outcome.ERROR,

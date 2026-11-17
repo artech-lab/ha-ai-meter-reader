@@ -148,6 +148,7 @@
           "accepted": "Accettata",
           "unconfirmed": "In attesa di conferma",
           "decrease": "Scartata: inferiore",
+          "implausible": "Scartata: salto non plausibile",
           "unreadable": "Non leggibile",
           "wrong_digits": "Scartata: troppe cifre",
           "error": "Errore",

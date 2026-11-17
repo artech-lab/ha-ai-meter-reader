@@ -148,6 +148,7 @@
           "accepted": "Accepted",
           "unconfirmed": "Waiting for confirmation",
           "decrease": "Rejected: lower",
+          "implausible": "Rejected: implausible jump",
           "unreadable": "Not readable",
           "wrong_digits": "Rejected: too many digits",
           "error": "Error",

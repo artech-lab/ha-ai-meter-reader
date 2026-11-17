@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-17
+
+### Fixed
+
+- A digit misread the same way on every frame (for example the first wheel hidden by the flash reflection
+  and read as 9) could be confirmed and accepted. A jump larger than a whole day at the maximum increase
+  (or than the time since the last accepted value at that rate, if longer) is now rejected as `implausible`
+  however many readings agree, and counts towards the problem alert.
+- An AI Task call that timed out was reported with an empty error (`ai_task.x: `): the last error now names the
+  exception (`TimeoutError`).
+
 ## [1.0.0] - 2026-11-16
 
 ### Added
