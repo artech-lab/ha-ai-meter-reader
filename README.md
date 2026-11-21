@@ -117,7 +117,7 @@ restart.
 | `name` | device name | Card title. |
 | `show_counter` | `true` | The reading drawn as a meter counter; decimal digits in red. Tap it to correct the reading. |
 | `show_consumption` | `true` | Consumption of today, yesterday and the last 24 hours. |
-| `show_chart` | `true` | Hourly consumption of the last 24 hours. |
+| `show_chart` | `true` | Hourly consumption of the last 24 hours, with the consumption per hour and the hours on the axes. |
 | `show_frame` | `true` | The last frame sent to the AI, with the digits it read. Tap to expand. |
 | `show_result` | `true` | The result of the last reading and its confidence. |
 | `show_buttons` | `true` | Read now, and automatic reading on/off. |

@@ -304,8 +304,15 @@ ha-card{padding:12px 16px 14px;box-sizing:border-box;height:100%}
 @media (prefers-reduced-motion:reduce){.strip{transition:none}}
 .chart{margin-top:12px;cursor:pointer}
 .chartcap{display:flex;justify-content:space-between;font-size:11px;color:var(--secondary-text-color);margin-bottom:4px}
+.plot{display:grid;grid-template-columns:auto 1fr;column-gap:6px;padding-top:6px}
+.yax{position:relative;height:54px;min-width:14px}
+.yax span,.xax span{position:absolute;font-size:10px;line-height:1;color:var(--secondary-text-color);white-space:nowrap;font-variant-numeric:tabular-nums}
+.yax span{right:0;transform:translateY(-50%)}
+.yax i{display:block;visibility:hidden;height:0;font-size:10px;font-style:normal;white-space:nowrap;font-variant-numeric:tabular-nums}
 .bars{height:54px}
-.bars svg{width:100%;height:100%;display:block}
+.bars svg{width:100%;height:100%;display:block;overflow:visible}
+.xax{position:relative;grid-column:2;height:14px;margin-top:4px}
+.xax span{top:0;transform:translateX(-50%)}
 .frame{position:relative;margin-top:12px;cursor:pointer}
 .frame img{display:block;width:100%;max-height:150px;object-fit:cover;border-radius:12px;background:var(--secondary-background-color)}
 .frame.expand img{max-height:none;object-fit:contain}
@@ -447,7 +454,7 @@ class AiMeterReaderCard extends HTMLElement {
         </div>
         <div class="chart" id="chart" hidden>
           <div class="chartcap"><span id="chartl"></span><span id="chartr"></span></div>
-          <div class="bars" id="bars"></div>
+          <div class="plot"><div class="yax" id="yax"></div><div class="bars" id="bars"></div><div class="xax" id="xax"></div></div>
         </div>
         <div class="frame" id="frame" hidden><img id="img" alt="" /><div class="cap" id="cap"></div></div>
         <div class="result" id="result" hidden>
@@ -556,16 +563,35 @@ class AiMeterReaderCard extends HTMLElement {
       bars.push({ at: a, v: pts.length && pts[0][0] <= b ? consumption(pts, a, b) : null });
     }
     const max = Math.max(0, ...bars.map((x) => x.v || 0));
+    // Round top of the y axis (1, 2, 4, 6, 8 x 10^n) so that its half is round too.
+    const mag = max > 0 ? Math.pow(10, Math.floor(Math.log10(max))) : 1;
+    const top = max > 0 ? [1, 2, 4, 6, 8, 10].find((m) => m * mag >= max * (1 - 1e-9)) * mag : 0;
+    const tickDec = top > 0 ? Math.max(0, Math.ceil(-Math.log10(top / 2) - 1e-9)) : 0;
     r.getElementById("chartr").textContent = max > 0 ? this._t("peak", { v: this._fmtUse(max, decimals) + " " + unit }) :
       (pts.length < 2 ? this._t("no_data") : "");
     const w = 100 / 24;
     const rects = bars.map((x, i) => {
-      const h = max > 0 && x.v ? Math.max(1.5, (x.v / max) * 52) : 0;
+      const h = top > 0 && x.v ? Math.max(1.5, (x.v / top) * 54) : 0;
       const hour = new Date(x.at).toLocaleTimeString(langOf(this._hass), { hour: "2-digit", minute: "2-digit" });
       const tip = `${hour} ${MID} ${x.v === null ? DASH : this._fmtUse(x.v, decimals) + " " + unit}`;
       return `<rect x="${(i * w + w * 0.15).toFixed(2)}" y="${(54 - Math.max(h, 1)).toFixed(2)}" width="${(w * 0.7).toFixed(2)}" height="${Math.max(h, 1).toFixed(2)}" rx="1" fill="${h ? color : "var(--divider-color)"}"><title>${tip}</title></rect>`;
     });
-    r.getElementById("bars").innerHTML = `<svg viewBox="0 0 100 54" preserveAspectRatio="none">${rects.join("")}</svg>`;
+    const grid = top > 0 ? [0, 27, 54].map((y) =>
+      `<line x1="0" x2="100" y1="${y}" y2="${y}" stroke="var(--divider-color)" stroke-dasharray="${y === 54 ? "none" : "3 3"}" vector-effect="non-scaling-stroke"/>`).join("") : "";
+    r.getElementById("bars").innerHTML = `<svg viewBox="0 0 100 54" preserveAspectRatio="none">${grid}${rects.join("")}</svg>`;
+    // The hidden <i> gives the axis the width of its longest label (the top one, with the unit).
+    const ticks = [[top, 0], [top / 2, 50], [0, 100]].map(([v, y]) => [`${this._fmt(v, v ? tickDec : 0)}${y ? "" : " " + unit}`, y]);
+    r.getElementById("yax").innerHTML = top > 0 ?
+      `<i>${ticks[0][0]}</i>` + ticks.map(([label, y]) => `<span style="top:${y}%">${label}</span>`).join("") : "";
+    // Hour labels at the hour boundaries that are multiples of 6 (00, 06, 12, 18).
+    r.getElementById("xax").innerHTML = bars.map((x, i) => {
+      if (new Date(x.at).getHours() % 6 || i === 0) return "";
+      // "6 PM" where the locale uses a 12-hour clock, "18:00" otherwise.
+      const d = new Date(x.at), lang = langOf(this._hass);
+      const short = d.toLocaleTimeString(lang, { hour: "numeric" });
+      const hour = /^\d+$/.test(short) ? d.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" }) : short;
+      return `<span style="left:${(i * w).toFixed(2)}%">${hour}</span>`;
+    }).join("");
   }
 
   _updateCounter(value, a, unit) {

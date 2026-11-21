@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-21
+
+### Added
+
+- The hourly chart of the card has axes: consumption per hour on the left (zero, half and a round top value,
+  with the unit) and the hours along the bottom every 6 hours, in the 12- or 24-hour format of the language.
+
 ## [1.1.0] - 2026-11-21
 
 ### Added
