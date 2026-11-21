@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-21
+
+### Added
+
+- The wheels of the card counter can be turned to correct the reading: tap the counter, turn the wheels with
+  the arrows, the mouse wheel, a vertical drag or the keyboard, then confirm. The card calls
+  `ai_meter_reader.set_reading`; a value lower than the current reading is pointed out before confirming.
+- The counter wheels roll to the new digits when the reading changes.
+
+### Changed
+
+- The consumption tiles of today, yesterday and the last 24 hours have an icon, a translucent background and
+  larger figures in the color of the meter type.
+- Tapping the counter no longer opens the history of the reading (the header and the chart still do).
+
 ## [1.0.1] - 2026-11-17
 
 ### Fixed

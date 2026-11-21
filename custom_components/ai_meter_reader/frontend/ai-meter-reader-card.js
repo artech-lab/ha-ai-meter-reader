@@ -8,6 +8,8 @@
  * consumption of today and yesterday, the hourly consumption of the last
  * 24 hours, the frame the AI read and the result of the last reading.
  * Every entity is discovered from the device of the configured reading sensor.
+ * The wheels of the counter can be turned to correct the reading: the card
+ * then calls the ai_meter_reader.set_reading action, it computes nothing.
  *
  * One dependency-free file, no build step. Localized: English and Italian.
  *
@@ -68,6 +70,12 @@ const STRINGS = {
     auto_on: "Automatic reading: on",
     auto_off: "Automatic reading: off",
     no_entity: "Select the reading sensor of an AI Meter Reader device.",
+    edit_title: "Turn the wheels to correct the reading",
+    edit_hint: "Turn the wheels to the reading of the meter",
+    edit_lower: "Lower than the current reading",
+    cancel: "Cancel",
+    set_value: "Set {v}",
+    set_failed: "Not set: {e}",
     // editor
     e_entity: "Reading sensor",
     e_name: "Title",
@@ -115,6 +123,12 @@ const STRINGS = {
     auto_on: "Lettura automatica: attiva",
     auto_off: "Lettura automatica: disattivata",
     no_entity: "Seleziona il sensore di lettura di un dispositivo AI Meter Reader.",
+    edit_title: "Gira le rotelle per correggere la lettura",
+    edit_hint: "Gira le rotelle fino alla lettura del contatore",
+    edit_lower: "Inferiore alla lettura attuale",
+    cancel: "Annulla",
+    set_value: "Imposta {v}",
+    set_failed: "Non impostata: {e}",
     e_entity: "Sensore di lettura",
     e_name: "Titolo",
     e_show_counter: "Mostra totalizzatore",
@@ -172,6 +186,10 @@ const DASH = "–";
 const MID = "·";
 const UNAVAILABLE = ["unavailable", "unknown"];
 const HOUR = 36e5;
+const DRAG_STEP = 14; // pixels of vertical drag per digit
+const CHEVRON = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+const UP = CHEVRON("M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z");
+const DOWN = CHEVRON("M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z");
 
 function findReadingEntity(hass) {
   const reg = (hass && hass.entities) || {};
@@ -249,15 +267,41 @@ ha-card{padding:12px 16px 14px;box-sizing:border-box;height:100%}
 .chip.bad{background:color-mix(in srgb,var(--error-color,#f44336) 15%,transparent);color:var(--error-color,#f44336)}
 .chip.idle{background:var(--secondary-background-color);color:var(--secondary-text-color)}
 .counter{margin-top:14px;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer}
-.wheels{display:flex;gap:3px;padding:5px;border-radius:10px;background:#15181d;box-shadow:inset 0 1px 4px rgba(0,0,0,.6)}
-.wheel{width:24px;height:36px;border-radius:4px;display:flex;align-items:center;justify-content:center;font:600 22px/1 "Roboto Mono","SF Mono",Menlo,Consolas,monospace;color:#f5f5f5;background:linear-gradient(#2b3038,#3d434d 45%,#2b3038)}
-.wheel.dec{color:#fff;background:linear-gradient(#8e1b1b,#c62828 45%,#8e1b1b)}
-.unit{font-size:15px;font-weight:500;color:var(--secondary-text-color)}
+.counter.editing{cursor:default}
+.wheels{--wh:42px;display:flex;gap:5px;padding:6px;border-radius:12px;background:#1b1e23;border:1px solid rgba(255,255,255,.06);box-shadow:inset 0 1px 4px rgba(0,0,0,.6),0 1px 2px rgba(0,0,0,.25)}
+.wcol{display:flex;flex-direction:column;align-items:center;gap:3px}
+.wheel{position:relative;width:30px;height:var(--wh);border-radius:7px;overflow:hidden;outline:none;font:700 24px/1 "Roboto Mono","SF Mono",Menlo,Consolas,monospace;color:#f5f5f5;background:linear-gradient(#30353d,#454b55 48%,#30353d);box-shadow:inset 0 1px 0 rgba(255,255,255,.07)}
+.wheel::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(rgba(0,0,0,.38),transparent 28%,transparent 72%,rgba(0,0,0,.38))}
+.wheel.dec{color:#fff;background:linear-gradient(#8e1b1b,#c62828 48%,#8e1b1b)}
+.wheel.empty .strip{visibility:hidden}
+.strip{display:flex;flex-direction:column;transition:transform .25s cubic-bezier(.25,.8,.35,1);will-change:transform}
+.strip span{height:var(--wh);min-height:var(--wh);display:flex;align-items:center;justify-content:center}
+.arr{display:none;border:none;background:none;padding:0;width:30px;height:16px;cursor:pointer;color:rgba(255,255,255,.55);border-radius:4px}
+.arr svg{width:18px;height:18px;fill:currentColor;display:block;margin:-1px auto 0}
+.arr:hover{color:#fff;background:rgba(255,255,255,.08)}
+.editing .arr{display:block}
+.editing .wheel{cursor:ns-resize;touch-action:none}
+.editing .wheel:hover,.editing .wheel:focus-visible,.editing .wheel.drag{box-shadow:0 0 0 2px var(--mr-color,#2196f3)}
+.unit{font-size:16px;font-weight:500;color:var(--mr-color,var(--secondary-text-color))}
+.pencil{--mdc-icon-size:16px;color:var(--secondary-text-color);opacity:.55}
+.counter:hover .pencil{opacity:1}
+.editing .pencil{display:none!important}
+.editbar{margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ehint{flex:1;min-width:140px;font-size:12px;color:var(--secondary-text-color)}
+.ehint.lower{color:var(--warning-color,#ff9800)}
+.tbtn{border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;line-height:1;padding:8px 14px;border-radius:18px;color:var(--primary-text-color);background:color-mix(in srgb,var(--primary-text-color) 8%,transparent)}
+.tbtn:hover{background:color-mix(in srgb,var(--primary-text-color) 14%,transparent)}
+.tbtn.ok{color:#fff;background:var(--mr-color,var(--primary-color))}
+.tbtn.ok:hover{filter:brightness(1.1)}
+.tbtn[disabled]{opacity:.4;cursor:default;pointer-events:none}
 .stats{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.stat{padding:8px 10px;border-radius:12px;background:var(--secondary-background-color);min-width:0}
-.slabel{font-size:11px;color:var(--secondary-text-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sval{font-size:16px;font-weight:600;color:var(--primary-text-color);margin-top:2px;white-space:nowrap;font-variant-numeric:tabular-nums}
-.sval small{font-size:11px;font-weight:400;color:var(--secondary-text-color);margin-left:2px}
+.stat{padding:10px 12px 11px;border-radius:16px;min-width:0;background:color-mix(in srgb,var(--primary-text-color) 5%,transparent);border:1px solid color-mix(in srgb,var(--primary-text-color) 4%,transparent)}
+.slabel{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:500;color:var(--mr-color,var(--secondary-text-color));white-space:nowrap;overflow:hidden}
+.slabel ha-icon{--mdc-icon-size:17px;flex:none}
+.slabel span{overflow:hidden;text-overflow:ellipsis}
+.sval{font-size:22px;font-weight:700;line-height:1.15;color:var(--primary-text-color);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.sval small{font-size:14px;font-weight:500;color:var(--mr-color,var(--secondary-text-color));margin-left:4px}
+@media (prefers-reduced-motion:reduce){.strip{transition:none}}
 .chart{margin-top:12px;cursor:pointer}
 .chartcap{display:flex;justify-content:space-between;font-size:11px;color:var(--secondary-text-color);margin-bottom:4px}
 .bars{height:54px}
@@ -377,6 +421,9 @@ class AiMeterReaderCard extends HTMLElement {
   _build() {
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
     const dots = '<div class="dot"></div>'.repeat(10);
+    const stat = (key, icon) =>
+      `<div class="stat"><div class="slabel"><ha-icon icon="${icon}"></ha-icon><span id="l_${key}"></span></div>` +
+      `<div class="sval" id="v_${key}">${DASH}</div></div>`;
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <ha-card>
         <div class="head" id="head">
@@ -384,11 +431,19 @@ class AiMeterReaderCard extends HTMLElement {
           <div class="titles"><div class="name" id="name"></div><div class="sub" id="sub"></div></div>
           <div class="chips"><div class="chip idle" id="paused" hidden></div><div class="chip bad" id="problem" hidden></div></div>
         </div>
-        <div class="counter" id="counter" hidden><div class="wheels" id="wheels"></div><span class="unit" id="unit"></span></div>
+        <div class="counter" id="counter" hidden>
+          <div class="wheels" id="wheels"></div><span class="unit" id="unit"></span>
+          <ha-icon class="pencil" icon="mdi:pencil"></ha-icon>
+        </div>
+        <div class="editbar" id="editbar" hidden>
+          <span class="ehint" id="ehint"></span>
+          <button class="tbtn" id="ecancel"></button>
+          <button class="tbtn ok" id="eok"></button>
+        </div>
         <div class="stats" id="stats" hidden>
-          <div class="stat"><div class="slabel" id="l_today"></div><div class="sval" id="v_today">${DASH}</div></div>
-          <div class="stat"><div class="slabel" id="l_yesterday"></div><div class="sval" id="v_yesterday">${DASH}</div></div>
-          <div class="stat"><div class="slabel" id="l_24h"></div><div class="sval" id="v_24h">${DASH}</div></div>
+          ${stat("today", "mdi:calendar-today")}
+          ${stat("yesterday", "mdi:calendar-arrow-left")}
+          ${stat("24h", "mdi:history")}
         </div>
         <div class="chart" id="chart" hidden>
           <div class="chartcap"><span id="chartl"></span><span id="chartr"></span></div>
@@ -412,7 +467,10 @@ class AiMeterReaderCard extends HTMLElement {
     const r = this.shadowRoot;
     const on = (id, fn) => r.getElementById(id).addEventListener("click", fn);
     on("head", () => this._more(this._cfg.entity));
-    on("counter", () => this._more(this._cfg.entity));
+    on("counter", () => this._startEdit());
+    on("ecancel", () => this._stopEdit());
+    on("eok", () => this._commitEdit());
+    this._bindWheels(r.getElementById("wheels"));
     on("stats", () => this._more(this._cfg.entity));
     on("chart", () => this._more(this._cfg.entity));
     on("result", () => this._more(this._ents().result));
@@ -437,6 +495,12 @@ class AiMeterReaderCard extends HTMLElement {
     r.getElementById("l_24h").textContent = this._t("last_24h");
     r.getElementById("chartl").textContent = this._t("per_hour") + " " + MID + " " + this._t("last_24h").toLowerCase();
     r.getElementById("conflabel").textContent = this._t("confidence");
+    r.getElementById("counter").title = this._t("edit_title");
+    r.getElementById("ecancel").textContent = this._t("cancel");
+    this._editing = false;
+    this._wKey = null;
+    this._shown = null;
+    this._shownValue = undefined;
     this._built = true;
   }
 
@@ -507,15 +571,210 @@ class AiMeterReaderCard extends HTMLElement {
   _updateCounter(value, a, unit) {
     const r = this.shadowRoot, wrap = r.getElementById("counter");
     wrap.hidden = !this._cfg.show_counter;
-    if (wrap.hidden) return;
-    const decimals = a.decimal_places || 0;
-    let text = value === null ? "" : Math.round(value * Math.pow(10, decimals)).toString();
-    const width = Math.max(a.digits || 0, text.length || 6, decimals + 1);
-    text = value === null ? DASH.repeat(width) : text.padStart(width, "0");
-    r.getElementById("wheels").innerHTML = [...text]
-      .map((d, i) => `<span class="wheel${i >= text.length - decimals ? " dec" : ""}">${d === DASH ? "&nbsp;" : d}</span>`)
-      .join("");
+    if (wrap.hidden) {
+      if (this._editing) this._stopEdit();
+      return;
+    }
     r.getElementById("unit").textContent = unit;
+    this._value = value;
+    this._unit = unit;
+    if (this._editing) {
+      this._updateEditBar();
+      return;
+    }
+    const decimals = a.decimal_places || 0;
+    const text = value === null ? "" : Math.round(value * Math.pow(10, decimals)).toString();
+    const width = Math.max(a.digits || 0, text.length || 6, decimals + 1);
+    if (this._wKey !== width + "/" + decimals) {
+      this._wKey = width + "/" + decimals;
+      this._decimals = decimals;
+      const strip = `<span class="strip">${"0123456789".repeat(2).replace(/\d/g, "<span>$&</span>")}</span>`;
+      const box = r.getElementById("wheels");
+      box.innerHTML = Array.from({ length: width }, (_, i) =>
+        `<div class="wcol"><button class="arr" data-i="${i}" data-dir="1" tabindex="-1">${UP}</button>` +
+        `<span class="wheel${i >= width - decimals ? " dec" : ""}" data-i="${i}">${strip}</span>` +
+        `<button class="arr" data-i="${i}" data-dir="-1" tabindex="-1">${DOWN}</button></div>`).join("");
+      this._wheels = [...box.querySelectorAll(".wheel")];
+      this._shownValue = undefined;
+    }
+    const digits = value === null ? null : [...text.padStart(width, "0")].map(Number);
+    const prev = this._shownValue;
+    // The wheels roll forward when the reading grows, backward after a correction.
+    const dir = value === null || prev === null || prev === undefined ? 0 : Math.sign(value - prev);
+    this._wheels.forEach((w, i) => {
+      w.classList.toggle("empty", !digits);
+      if (digits) this._roll(w, digits[i], dir);
+    });
+    this._shown = digits;
+    this._shownValue = value;
+  }
+
+  /* Turns one wheel to a digit: dir > 0 rolls forward (9 -> 0), dir < 0 backward, 0 jumps. */
+  _roll(w, to, dir) {
+    const s = w.firstElementChild, from = w._d;
+    const place = (idx, animate) => {
+      s.style.transition = animate ? "" : "none";
+      s.style.transform = `translateY(calc(var(--wh) * ${-idx}))`;
+      if (!animate) void s.offsetHeight;
+    };
+    if (w._snap) {
+      clearTimeout(w._snap);
+      w._snap = null;
+      place(from, false);
+    }
+    if (from === undefined || !dir || from === to) place(to, false);
+    else if (dir > 0 && to < from) {
+      // The strip holds the digits twice: roll on to the second 0-9, then jump back.
+      place(to + 10, true);
+      w._snap = setTimeout(() => {
+        w._snap = null;
+        place(to, false);
+      }, 300);
+    } else if (dir < 0 && to > from) {
+      place(from + 10, false);
+      place(to, true);
+    } else place(to, true);
+    w._d = to;
+  }
+
+  /* Editing: arrows, mouse wheel, vertical drag and keyboard turn one wheel at a time. */
+  _bindWheels(box) {
+    const idx = (el) => (el && el.dataset.i !== undefined ? +el.dataset.i : -1);
+    box.addEventListener("click", (e) => {
+      const b = e.target.closest(".arr");
+      if (!this._editing || !b) return;
+      e.stopPropagation();
+      this._step(idx(b), +b.dataset.dir);
+      this._wheels[idx(b)].focus();
+    });
+    box.addEventListener("wheel", (e) => {
+      const col = e.target.closest(".wcol");
+      if (!this._editing || !col || !e.deltaY) return;
+      e.preventDefault();
+      this._step(idx(col.querySelector(".wheel")), e.deltaY > 0 ? -1 : 1);
+    }, { passive: false });
+    box.addEventListener("pointerdown", (e) => {
+      const w = e.target.closest(".wheel");
+      if (!this._editing || !w) return;
+      e.preventDefault();
+      w.focus();
+      w.setPointerCapture(e.pointerId);
+      w.classList.add("drag");
+      let last = e.clientY, acc = 0;
+      const move = (ev) => {
+        acc += last - ev.clientY;
+        last = ev.clientY;
+        while (Math.abs(acc) >= DRAG_STEP) {
+          const d = Math.sign(acc);
+          this._step(idx(w), d);
+          acc -= d * DRAG_STEP;
+        }
+      };
+      const up = () => {
+        w.classList.remove("drag");
+        w.removeEventListener("pointermove", move);
+        w.removeEventListener("pointerup", up);
+        w.removeEventListener("pointercancel", up);
+      };
+      w.addEventListener("pointermove", move);
+      w.addEventListener("pointerup", up);
+      w.addEventListener("pointercancel", up);
+    });
+    box.addEventListener("keydown", (e) => {
+      const i = idx(e.target.closest(".wheel"));
+      if (!this._editing || i < 0) return;
+      const focus = (j) => this._wheels[Math.max(0, Math.min(this._wheels.length - 1, j))].focus();
+      if (e.key === "ArrowUp") this._step(i, 1);
+      else if (e.key === "ArrowDown") this._step(i, -1);
+      else if (e.key === "ArrowLeft") focus(i - 1);
+      else if (e.key === "ArrowRight") focus(i + 1);
+      else if (/^\d$/.test(e.key)) {
+        const d = +e.key;
+        this._roll(this._wheels[i], d, Math.sign(d - this._draft[i]));
+        this._draft[i] = d;
+        this._updateEditBar();
+        focus(i + 1);
+      } else if (e.key === "Enter") this._commitEdit();
+      else if (e.key === "Escape") this._stopEdit();
+      else return;
+      e.preventDefault();
+    });
+  }
+
+  _step(i, dir) {
+    if (i < 0 || !this._draft) return;
+    const d = (this._draft[i] + dir + 10) % 10;
+    this._draft[i] = d;
+    this._roll(this._wheels[i], d, dir);
+    this._updateEditBar();
+  }
+
+  _draftValue() {
+    return parseInt(this._draft.join(""), 10) / Math.pow(10, this._decimals);
+  }
+
+  _startEdit() {
+    if (this._editing || !this._wheels || !this._hass) return;
+    this._editing = true;
+    this._sending = false;
+    this._error = null;
+    this._draft = this._shown ? this._shown.slice() : this._wheels.map(() => 0);
+    this._wheels.forEach((w, i) => {
+      w.tabIndex = 0;
+      w.classList.remove("empty");
+      this._roll(w, this._draft[i], 0);
+    });
+    const r = this.shadowRoot;
+    r.getElementById("counter").classList.add("editing");
+    r.getElementById("editbar").hidden = false;
+    this._updateEditBar();
+    this._wheels[Math.max(0, this._wheels.length - this._decimals - 1)].focus();
+  }
+
+  _stopEdit() {
+    if (!this._editing) return;
+    this._editing = false;
+    this._draft = null;
+    const r = this.shadowRoot, shown = this._shown;
+    r.getElementById("counter").classList.remove("editing");
+    r.getElementById("editbar").hidden = true;
+    this._wheels.forEach((w, i) => {
+      w.removeAttribute("tabindex");
+      w.classList.toggle("empty", !shown);
+      if (shown) this._roll(w, shown[i], 0);
+    });
+    this._lastSig = null;
+    this._refresh();
+  }
+
+  _updateEditBar() {
+    if (!this._editing) return;
+    const r = this.shadowRoot, v = this._draftValue();
+    const lower = this._value !== null && v < this._value;
+    const hint = r.getElementById("ehint");
+    hint.textContent = this._error ? this._t("set_failed", { e: this._error }) : this._t(lower ? "edit_lower" : "edit_hint");
+    hint.classList.toggle("lower", lower || !!this._error);
+    const ok = r.getElementById("eok");
+    ok.textContent = this._t("set_value", { v: `${this._fmt(v, this._decimals)} ${this._unit || ""}`.trim() });
+    ok.toggleAttribute("disabled", v === this._value || this._sending);
+  }
+
+  async _commitEdit() {
+    if (!this._editing || this._sending) return;
+    const v = this._draftValue();
+    if (v === this._value) return;
+    this._sending = true;
+    this._error = null;
+    this._updateEditBar();
+    try {
+      await this._hass.callService(INTEGRATION, "set_reading", { value: v }, { entity_id: this._cfg.entity });
+      this._sending = false;
+      this._stopEdit();
+    } catch (err) {
+      this._sending = false;
+      this._error = (err && err.message) || String(err);
+      this._updateEditBar();
+    }
   }
 
   _refresh() {
@@ -554,7 +813,7 @@ class AiMeterReaderCard extends HTMLElement {
     r.getElementById("name").textContent = c.name || (device && (device.name_by_user || device.name)) || this._t("default_title");
     const iw = r.getElementById("iconwrap");
     iw.style.background = `color-mix(in srgb, ${type.color} 18%, transparent)`;
-    iw.style.setProperty("--mr-color", type.color);
+    r.querySelector("ha-card").style.setProperty("--mr-color", type.color);
     iw.classList.toggle("pulse", busy);
     const ic = r.getElementById("icon");
     ic.setAttribute("icon", type.icon);

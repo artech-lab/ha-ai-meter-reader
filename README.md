@@ -115,14 +115,18 @@ restart.
 | --- | --- | --- |
 | `entity` | — | **Required.** The reading sensor. |
 | `name` | device name | Card title. |
-| `show_counter` | `true` | The reading drawn as a meter counter; decimal digits in red. |
+| `show_counter` | `true` | The reading drawn as a meter counter; decimal digits in red. Tap it to correct the reading. |
 | `show_consumption` | `true` | Consumption of today, yesterday and the last 24 hours. |
 | `show_chart` | `true` | Hourly consumption of the last 24 hours. |
 | `show_frame` | `true` | The last frame sent to the AI, with the digits it read. Tap to expand. |
 | `show_result` | `true` | The result of the last reading and its confidence. |
 | `show_buttons` | `true` | Read now, and automatic reading on/off. |
 
-Tap the header, the counter or the chart to open the history of the reading.
+Tap the header or the chart to open the history of the reading.
+
+To correct the reading, tap the counter and turn its wheels: with the arrows, the mouse wheel, by dragging
+them up or down, or with the keyboard (arrow keys or digits, Enter to confirm, Esc to cancel). *Set* calls
+[`ai_meter_reader.set_reading`](#action-ai_meter_readerset_reading) with the new value.
 
 <img src="https://raw.githubusercontent.com/artech-lab/ha-ai-meter-reader/main/images/card-it.png" alt="The card in Italian" width="760">
 
